@@ -1,150 +1,153 @@
-#include "sort.h" 
+#include "sort.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+#include <string.h>
 
 void menu() {
     printf("\n\n========= Menu =======\n\n");
-    printf("[1] - Estatisticas\n"); 
-    printf("[2] - BubbleSort\n");
-    printf("[3] - MergeSort\n");
-    printf("[4] - Mudar Colecao de Dados [Inverso ou Ordenado]\n"); 
-    printf("[5] - Salvar Arquivo\n"); 
+    printf("[1] - Executar Experimento Completo (ordenado + inverso)\n");
+    printf("[2] - Gerar Colecao Ordenada\n");
+    printf("[3] - Gerar Colecao Inversa\n");
+    printf("[4] - Salvar ultimos resultados (CSV)\n");
     printf("[0] - Sair\n");
 }
 
-void executarAcao(int escolha, int *colecao_atual, int arr_mestre[TAMANHO]) {
-    int arr_teste[TAMANHO];
-    int n_teste = 100;
-    // Variáveis de Contagem 
-    long long trocas_bubble = 0;
-    long long comps_bubble = 0;
-    long long movs_merge = 0;
-    long long comps_merge = 0;
-    
-    switch (escolha) {
-        case 1: // Estatístiacas
-         printf("--- Estatisticas (A implementar) ---\n");
-            printf("A ideia e colocar o tempo de execucao,\n Quantas execucoes foram feitas, e tals etals ");
-            break;
-        case 2: // Bubble Sort
-         printf("--- Executando Bubble Sort ---\n");
-            copiarArray(arr_mestre, arr_teste, TAMANHO);
+// Estrutura para guardar ultimos resultados (para salvar/exibir)
+typedef struct {
+    int colecao; // 1 ordenada, 2 inversa
+    int n0;
+    double times_bubble[REPETICOES];
+    double times_merge[REPETICOES];
+    double times_hibrido[REPETICOES];
+    int valid;
+} Results;
 
-            printf("Lista antes da ordenacao:\n");
-            imprimir(arr_teste, n_teste);
+Results last_results_ordered = {0};
+Results last_results_inversed = {0};
 
-            bubbleSort(arr_teste, TAMANHO,&trocas_bubble, &comps_bubble); 
-            printf("Lista apos Bubble Sort:\n");
-            imprimir(arr_teste, n_teste);
-            printf("\n--- Contadores (N= %d) ---\n", TAMANHO);
-            printf("Comparacoes: %lld\n", comps_bubble);
-            printf("Trocas: %lld\n", trocas_bubble);
-            
+void executarExperimentoParaColecao(int arr_mestre[], int colecao_id, Results *store) {
+    printf("\n--- Iniciando experimento para colecao: %s ---\n", (colecao_id == 1) ? "ORDENADA" : "INVERSA");
 
+    // 1) Encontrar n0 baseado nessa colecao
+    printf("Determinando n0 (crossover) para esta colecao. Aguarde...\n");
+    int n0 = encontrarN0(arr_mestre, TAMANHO);
+    printf("n0 encontrado: %d\n", n0);
+    store->n0 = n0;
 
-            break;
-        case 3: // Merge Sort
-            printf("--- Executando Merge Sort ---\n");
-            copiarArray(arr_mestre, arr_teste, TAMANHO);
-            printf("Lista antes da ordenacao:\n");
-            imprimir(arr_teste, n_teste);
-            mergeSort(arr_teste, 0, TAMANHO - 1, &movs_merge, &comps_merge); 
-            printf("Lista apos Merge Sort:\n");
-            imprimir(arr_teste, n_teste);
-            printf("\n--- Contadores (N= %d) ---\n",TAMANHO);
-            printf("Comparacoes: %lld\n", comps_merge);
-            printf("Movimentacoes: %lld\n", movs_merge);
-            break;
-        case 4:
-         printf("\n--- Selecao da Colecao de Dados ---\n");
-            printf("[1] - 10.000 Elementos ORDENADOS (Caso Favoravel)\n");
-            printf("[2] - 10.000 Elementos INVERSOS (Caso Desfavoravel)\n");
-            
-            escolha = lerInteiro("\nEscolha a colecao para testar: ");
+    int copia[TAMANHO];
+    // 2) Executar 100 vezes Bubble e Merge e Hibrido
+    for (int i = 0; i < REPETICOES; i++) {
+        // Bubble
+        copiarArray(arr_mestre, copia, TAMANHO);
+        clock_t s = clock();
+        long long trocas = 0, comps = 0;
+        bubbleSort(copia, TAMANHO, &trocas, &comps);
+        clock_t e = clock();
+        store->times_bubble[i] = (double)(e - s) / (double)CLOCKS_PER_SEC;
 
-            if (escolha == 1) {
-                gerarArrayOrdenado(arr_mestre, TAMANHO);
-                *colecao_atual = 1;
-                printf("\nColecao ORDENADA gerada com sucesso!\n");
-            } else if (escolha == 2) {
-                gerarArrayInverso(arr_mestre, TAMANHO);
-                *colecao_atual = 2;
-                printf("\nColecao INVERSA gerada com sucesso!\n");
-            } else {
-                printf("\nOpcao invalida. Usando colecao ORDENADA por padrao.\n");
-                gerarArrayOrdenado(arr_mestre, TAMANHO);
-                *colecao_atual = 1;
-            }
-            break;
-        case 5:
-            printf("--- Digite qual resultado deseja salvar:  ---\n");
-            break;
-        default:
-            printf("\nOpcao invalida (Erro Desconhecido)\n");
-            break;
+        // Merge
+        copiarArray(arr_mestre, copia, TAMANHO);
+        s = clock();
+        long long mov = 0, comp = 0;
+        mergeSort(copia, 0, TAMANHO - 1, &mov, &comp);
+        e = clock();
+        store->times_merge[i] = (double)(e - s) / (double)CLOCKS_PER_SEC;
+
+        // Hibrido (usa n0)
+        copiarArray(arr_mestre, copia, TAMANHO);
+        s = clock();
+        mergeSortHibrido(copia, 0, TAMANHO - 1, n0);
+        e = clock();
+        store->times_hibrido[i] = (double)(e - s) / (double)CLOCKS_PER_SEC;
+
+        if ((i + 1) % 10 == 0) {
+            printf("Repeticoes: %d/%d\n", i + 1, REPETICOES);
+        }
     }
-}
 
+    store->colecao = colecao_id;
+    store->valid = 1;
+
+    // Estatísticas e impressão resumida
+    double min, max, media, moda, desvio;
+    printf("\nResumo estatístico (colecao %s):\n", (colecao_id == 1) ? "ORDENADA" : "INVERSA");
+
+    printf("\n-- Bubble --\n");
+    calcularEstatisticas(store->times_bubble, REPETICOES, &min, &max, &media, &moda, &desvio);
+    printf("Min: %.9f  Max: %.9f  Media: %.9f  Moda: %.9f  Desvio: %.9f\n", min, max, media, moda, desvio);
+
+    printf("\n-- Merge --\n");
+    calcularEstatisticas(store->times_merge, REPETICOES, &min, &max, &media, &moda, &desvio);
+    printf("Min: %.9f  Max: %.9f  Media: %.9f  Moda: %.9f  Desvio: %.9f\n", min, max, media, moda, desvio);
+
+    printf("\n-- Hibrido (n0=%d) --\n", n0);
+    calcularEstatisticas(store->times_hibrido, REPETICOES, &min, &max, &media, &moda, &desvio);
+    printf("Min: %.9f  Max: %.9f  Media: %.9f  Moda: %.9f  Desvio: %.9f\n", min, max, media, moda, desvio);
+
+    printf("\nExperimento concluido para esta colecao.\n");
+}
 
 int main() {
     int arr_mestre[TAMANHO];
-    int colecao_atual = 0; // // Variável de Controle:(1=Ordenado, 2=Inverso)
-    int n = sizeof(arr_mestre) / sizeof(arr_mestre[0]);
-    int escolha;
-    int voltar;
-
-    gerarArrayOrdenado(arr_mestre, TAMANHO); // Gera a coleção standart
-    colecao_atual = 1;
+    int colecao_atual = 1; // por padrão ordenada
+    gerarArrayOrdenado(arr_mestre, TAMANHO);
 
     while (1) {
         limparTela();
         menu();
-        
-        printf("\nDigite a opcao desejada: ");
-        escolha = lerInteiro("");
+        int opc = lerInteiro("\nEscolha a opcao: ");
 
-        if (escolha == 0) {
-            printf("\nFinalizando o programa... Obrigado pela atencao!");
+        if (opc == 0) {
+            printf("Encerrando...\n");
             break;
         }
 
-        // Se a opção for válida (1 a 4)
-        if (escolha >= 1 && escolha <= 5) {
-            int continuarNaOpcao = 1;
-            while (continuarNaOpcao) {
-                limparTela();
-                executarAcao(escolha, &colecao_atual, arr_mestre);
-
-                // Voltar ao Menu / Continuar / Sair
-                int voltarValido = 0;
-                do {
-                    printf("\n\n[1]-Voltar ao Menu / [2]-Continuar (Repetir Acao) / [0]-Sair\n: ");
-                    voltar = lerInteiro("");
-                    if (voltar == 1 || voltar == 0 || voltar == 2) {
-                        voltarValido = 1;
-                    } else {
-                        printf("\nDigito invalido: ");
-                    }
-                } while (!voltarValido);
-
-                if (voltar == 1) { // Voltar ao Menu
-                    continuarNaOpcao = 0; 
-                } else if (voltar == 0) { // Sair
-                    limparTela();
-                    printf("\nFinalizando o programa... Obrigado pela atencao!");
-                    return EXIT_SUCCESS; 
-                } else { // voltar == 2: Continuar (Repetir Acao)
-                    continuarNaOpcao = 1;
-                }
+        if (opc == 1) {
+            // Executar experimento completo: ordenada e inversa
+            // Ordenada
+            gerarArrayOrdenado(arr_mestre, TAMANHO);
+            executarExperimentoParaColecao(arr_mestre, 1, &last_results_ordered);
+            // Inversa
+            gerarArrayInverso(arr_mestre, TAMANHO);
+            executarExperimentoParaColecao(arr_mestre, 2, &last_results_inversed);
+            printf("\nExperimento completo (ambas colecoes) finalizado.\n");
+            printf("Use opcao 4 para salvar os CSVs (ultimos resultados)\n");
+            lerInteiro("Pressione Enter (digite 0) para voltar ao menu: ");
+        } else if (opc == 2) {
+            gerarArrayOrdenado(arr_mestre, TAMANHO);
+            printf("Colecao ordenada gerada.\n");
+            lerInteiro("Pressione Enter (digite 0) para voltar ao menu: ");
+        } else if (opc == 3) {
+            gerarArrayInverso(arr_mestre, TAMANHO);
+            printf("Colecao inversa gerada.\n");
+            lerInteiro("Pressione Enter (digite 0) para voltar ao menu: ");
+        } else if (opc == 4) {
+            // Salvar últimos resultados (se existirem)
+            if (last_results_ordered.valid) {
+                salvarResultadosCSV("resultados_ordenado.csv",
+                                    last_results_ordered.times_bubble,
+                                    last_results_ordered.times_merge,
+                                    last_results_ordered.times_hibrido,
+                                    REPETICOES);
+            } else {
+                printf("Nao ha resultados para colecao ordenada.\n");
             }
+            if (last_results_inversed.valid) {
+                salvarResultadosCSV("resultados_inverso.csv",
+                                    last_results_inversed.times_bubble,
+                                    last_results_inversed.times_merge,
+                                    last_results_inversed.times_hibrido,
+                                    REPETICOES);
+            } else {
+                printf("Nao ha resultados para colecao inversa.\n");
+            }
+            lerInteiro("Pressione Enter (digite 0) para voltar ao menu: ");
         } else {
-            printf("\nOpcao invalida, por favor insira um numero entre 0 e 7.\n");
-            printf("Pressione Enter para continuar...");
-            // Limpa o buffer antes de pausar
-            while (getchar() != '\n'); 
-            getchar(); // Pausa para o usuário ver a mensagem de erro
+            printf("Opcao invalida.\n");
+            lerInteiro("Pressione Enter (digite 0) para voltar ao menu: ");
         }
     }
 
-    return EXIT_SUCCESS;
+    return 0;
 }
