@@ -25,4 +25,9 @@ void gerarArrayOrdenado(int arr[], int tamanho);
 void gerarArrayInverso(int arr[], int tamanho);
 
 
+void calcularEstatisticas(double valores[], int n,
+                          double *min, double *max,
+                          double *media, double *moda,
+                          double *desvioPadrao);
+
 #endif // SORT_H

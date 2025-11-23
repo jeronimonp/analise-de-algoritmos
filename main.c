@@ -1,6 +1,8 @@
 #include "sort.h" 
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+#include <math.h>
 
 void menu() {
     printf("\n\n========= Menu =======\n\n");
@@ -23,8 +25,53 @@ void executarAcao(int escolha, int *colecao_atual, int arr_mestre[TAMANHO]) {
     
     switch (escolha) {
         case 1: // Estatístiacas
-         printf("--- Estatisticas (A implementar) ---\n");
-            printf("A ideia e colocar o tempo de execucao,\n Quantas execucoes foram feitas, e tals etals ");
+         // Estatístiacas
+            printf("--- Estatisticas (100 execucoes) ---\n");
+
+            double tempos_bubble[100];
+            double tempos_merge[100];
+
+            int copia[TAMANHO];
+
+            // ---- 100 execuções Bubble ----
+            for (int i = 0; i < 100; i++) {
+                copiarArray(arr_mestre, copia, TAMANHO);
+
+                clock_t ini = clock();
+                long long troc = 0, comp = 0;
+                bubbleSort(copia, TAMANHO, &troc, &comp);
+                clock_t fim = clock();
+
+                printf("Diferenca de Clock para Bubble Sort: %ld\n", (long)(fim - ini));
+
+                tempos_bubble[i] = (double)(fim - ini) / CLOCKS_PER_SEC;
+            }
+
+            // ---- 100 execuções Merge ----
+            for (int i = 0; i < 100; i++) {
+                copiarArray(arr_mestre, copia, TAMANHO);
+
+                clock_t ini = clock();
+                long long mov = 0, comp = 0;
+                mergeSort(copia, 0, TAMANHO - 1, &mov, &comp);
+                clock_t fim = clock();
+
+                tempos_merge[i] = (double)(fim - ini) / CLOCKS_PER_SEC;
+            }
+
+            // ---- Estatísticas completas ----
+            double min, max, media, moda, desvio;
+
+            printf("\n=== Estatisticas BubbleSort ===\n");
+            calcularEstatisticas(tempos_bubble, 100, &min, &max, &media, &moda, &desvio);
+            printf("Min: %.9f\nMax: %.9f\nMedia: %.9f\nModa: %.9f\nDesvio Padrao: %.9f\n",
+                    min, max, media, moda, desvio);
+
+            printf("\n=== Estatisticas MergeSort ===\n");
+            calcularEstatisticas(tempos_merge, 100, &min, &max, &media, &moda, &desvio);
+            printf("Min: %.9f\nMax: %.9f\nMedia: %.9f\nModa: %.9f\nDesvio Padrao: %.9f\n",
+                    min, max, media, moda, desvio);
+
             break;
         case 2: // Bubble Sort
          printf("--- Executando Bubble Sort ---\n");
