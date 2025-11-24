@@ -140,3 +140,27 @@ void calcularEstatisticas(double valores[], int n,
 
     *desvioPadrao = sqrt(somaQuadrados / (n - 1));
 }
+
+// Salva arrays de tempos em CSV: coluna index,bubble,merge,hibrido
+void salvarResultadosCSV(const char *nomeArquivo,
+                         double times_bubble[], double times_merge[], double times_hibrido[],
+                         int n, int n0, int colecao_id)
+{
+    FILE *f = fopen(nomeArquivo, "w");
+    if (!f) {
+        fprintf(stderr, "Falha ao abrir arquivo para escrita: %s\n", nomeArquivo);
+        return;
+    }
+
+    // Cabeçalho com metadados
+    fprintf(f, "# Colecao: %s\n", (colecao_id == 1) ? "ORDENADA" : "INVERSA");
+    fprintf(f, "# TAMANHO=%d, REPETICOES=%d, N0=%d\n", TAMANHO, REPETICOES, n0);
+    fprintf(f, "idx,bubble,merge,hibrido\n");
+
+    for (int i = 0; i < n; i++) {
+        fprintf(f, "%d,%.9f,%.9f,%.9f\n", i+1, times_bubble[i], times_merge[i], times_hibrido[i]);
+    }
+
+    fclose(f);
+    printf("Resultados salvos em %s\n", nomeArquivo);
+}
